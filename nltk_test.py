@@ -2,6 +2,8 @@ import nltk
 import json
 from nltk.corpus import stopwords
 import string
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from imdb import IMDb
 # filter = "JSON file (*.json)|*.json|All Files (*.*)|*.*||"
 # filename = rs.OpenFileName("Open JSON File", filter)
 # data = json.load('gg2013.json')
@@ -193,10 +195,46 @@ def get_presenters(year):
     return presenters
 
 
+def get_red_carpet(year):
+    analyzer = SentimentIntensityAnalyzer()
+    ia = IMDb()
+    bgms = []
+    names = {}
+
+    for tweet in red_carpet_tweets:
+        tokens = tweet["text"]
+        try:
+            tokens.remove("red")
+            tokens.remove("carpet")
+        except ValueError:
+            pass
+        bgms.extend(nltk.bigrams(tokens))
+    freq = nltk.FreqDist(bgms)
+    for bigram in sorted(freq, key=freq.get, reverse=True)[:100]:
+        name = " ".join(bigram)
+        if ia.search_person(name):
+            if ia.search_person(name)[0]['name'].lower() == name.lower():
+                names[name] = 0
+
+    for tweet in red_carpet_tweets:
+        tokens = tweet["text"]
+        text = " ".join(tokens)
+        for n in names:
+            if n in text:
+                sentiment = analyzer.polarity_scores(text)
+                names[n] += sentiment['compound']
+    best = sorted(names, key=names.get, reverse=True)[:5]
+    worst = sorted(names, key=names.get)[:5]
+    print(best)
+    print(worst)
+    return
+
+
 host_tweets = []
 award_tweets = []
 presenter_tweets = []
 all_tweets = []
+red_carpet_tweets = []
 
 
 def pre_ceremony():
@@ -224,19 +262,26 @@ def pre_ceremony():
                 award_tweets.append(t)
             if any(w in presenter_terms for w in tokens):
                 presenter_tweets.append(t)
+            if "red" in tokens and "carpet" in tokens:
+                red_carpet_tweets.append(t)
+
     print("Pre-ceremony processing complete.")
     return
 
 
 def main():
     pre_ceremony()
+    get_red_carpet("2013")
     # print (get_hosts(host_tweets))
     # print (get_awards("2013"))
+    # presenters = (get_presenters("2013"))
+    # for keys, values in presenters.items():
+    #     print(keys)
+    #     print(values)
     # winners = (get_winner("2013"))
-    presenters = (get_presenters("2013"))
-    for keys, values in presenters.items():
-        print(keys)
-        print(values)
+    # for keys, values in winners.items():
+    #     print(keys)
+    #     print(values)
     return
 
 
