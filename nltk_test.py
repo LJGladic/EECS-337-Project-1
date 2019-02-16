@@ -23,33 +23,6 @@ OFFICIAL_AWARDS_1315 = ['cecil b. demille award', 'best motion picture - drama',
 OFFICIAL_AWARDS_1819 = ['best motion picture - drama', 'best motion picture - musical or comedy', 'best performance by an actress in a motion picture - drama', 'best performance by an actor in a motion picture - drama', 'best performance by an actress in a motion picture - musical or comedy', 'best performance by an actor in a motion picture - musical or comedy', 'best performance by an actress in a supporting role in any motion picture', 'best performance by an actor in a supporting role in any motion picture', 'best director - motion picture', 'best screenplay - motion picture', 'best motion picture - animated', 'best motion picture - foreign language', 'best original score - motion picture', 'best original song - motion picture', 'best television series - drama', 'best television series - musical or comedy',
                         'best television limited series or motion picture made for television', 'best performance by an actress in a limited series or a motion picture made for television', 'best performance by an actor in a limited series or a motion picture made for television', 'best performance by an actress in a television series - drama', 'best performance by an actor in a television series - drama', 'best performance by an actress in a television series - musical or comedy', 'best performance by an actor in a television series - musical or comedy', 'best performance by an actress in a supporting role in a series, limited series or motion picture made for television', 'best performance by an actor in a supporting role in a series, limited series or motion picture made for television', 'cecil b. demille award']
 
-condense_awards = ['cecil demille award',
-                   'best motion picture drama',
-                   'best performace actress drama',
-                   'best performace actor drama',
-                   'best motion picture comedy musical',
-                   'actress comedy musical performance',
-                   'actor comedy musical performace',
-                   'animated feature film',
-                   'foreign language film',
-                   'supporting actress best',
-                   'best supporting actor',
-                   'best director',
-                   'best screenplay',
-                   'best score',
-                   'best original song',
-                   'best TV series',
-                   'actress TV series',
-                   'actor TV series',
-                   'TV series comedy musical',
-                   'actress TV mucial comedy',
-                   'actor TV musical comedy',
-                   'TV mini series picture',
-                   'actress mini picture TV',
-                   'actor mini picture TV',
-                   'actress supporting TV series',
-                   'actor supporting TV series']
-
 
 def get_hosts(tweets):
     cohost_terms = ['cohost', 'co-hosts', 'cohosts', 'cohosting']
@@ -125,6 +98,11 @@ def get_winner(year):
             if 'picture' in award_tokens:
                 award_tokens.remove('picture')
 
+        human_name = False
+        bgms = []
+        if 'actor' in award_tokens or 'actress' in award_tokens:
+            human_name = True
+
         print (award_tokens)
         possible_winners = {}
         # check to see if tweet has words in award name
@@ -137,12 +115,20 @@ def get_winner(year):
             #.7 with no punctuation
             if percent > .9:
                 winner_name = [word for word in tweet_tokens if word not in award_tokens]
-                winner_name = " ".join(winner_name)
-                if winner_name not in possible_winners:
-                    possible_winners[winner_name] = 1
+                if human_name:
+                    bgms.extend(nltk.bigrams(winner_name))
                 else:
-                    possible_winners[winner_name] += 1
-        winners[award] = sorted(possible_winners, key=possible_winners.get, reverse=True)[: 1]
+                    winner_name = " ".join(winner_name)
+                    if winner_name not in possible_winners:
+                        possible_winners[winner_name] = 1
+                    else:
+                        possible_winners[winner_name] += 1
+        if human_name:
+            freq = nltk.FreqDist(bgms)
+            winners[award] = " ".join(sorted(freq, key=freq.get, reverse=True)[
+                                      :1][0])
+        else:
+            winners[award] = sorted(possible_winners, key=possible_winners.get, reverse=True)[:1]
     # find tweets that contain certain percentage of award name,
     # remove stop words and award words,
     return winners
