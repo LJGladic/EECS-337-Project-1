@@ -4,6 +4,8 @@ from nltk.corpus import stopwords
 import string
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from imdb import IMDb
+from nltk.collocations import *
+from nltk.metrics.association import QuadgramAssocMeasures
 # filter = "JSON file (*.json)|*.json|All Files (*.*)|*.*||"
 # filename = rs.OpenFileName("Open JSON File", filter)
 # data = json.load('gg2013.json')
@@ -294,7 +296,7 @@ def get_presenters(year):
     return presenters
 
 
-def get_red_carpet(year):
+def get_red_carpet():
     analyzer = SentimentIntensityAnalyzer()
     ia = IMDb()
     bgms = []
@@ -329,11 +331,41 @@ def get_red_carpet(year):
     return
 
 
+def get_jokes():
+    quadgram_measures = QuadgramAssocMeasures
+    finder = QuadgramCollocationFinder.from_documents(joke_tweets)
+    finder.apply_freq_filter(5)
+    common = finder.nbest(quadgram_measures.pmi, 30)
+    jokes = []
+    for tweet in joke_original:
+        for q in common:
+            count = 0
+            for word in q:
+                if word in tweet:
+                    count += 1
+            if count == 4:
+                add = True
+                for j in jokes:
+                    repeat = 0
+                    for word in q:
+                        if word in j:
+                            repeat += 1
+                    if repeat == 4:
+                        add = False
+                if add:
+                    jokes.append(tweet)
+                    common.remove(q)
+    print(jokes)
+    return jokes
+
+
 host_tweets = []
 award_tweets = []
 presenter_tweets = []
 all_tweets = []
 red_carpet_tweets = []
+joke_tweets = []
+joke_original = []
 
 
 def pre_ceremony():
@@ -363,6 +395,9 @@ def pre_ceremony():
                 presenter_tweets.append(t)
             if "red" in tokens and "carpet" in tokens:
                 red_carpet_tweets.append(t)
+            if "joke" in tokens:
+                joke_tweets.append(t["text"])
+                joke_original.append(tweet)
 
     print("Pre-ceremony processing complete.")
     return
@@ -370,21 +405,22 @@ def pre_ceremony():
 
 def main():
     pre_ceremony()
-    get_red_carpet("2013")
+    # get_red_carpet()
     # print (get_hosts(host_tweets))
     # print (get_awards("2013"))
     # presenters = (get_presenters("2013"))
     # for keys, values in presenters.items():
     #     print(keys)
     #     print(values)
-    winners = (get_winner("2013"))
+    # winners = (get_winner("2013"))
     #for keys, values in winners.items():
     #    print(keys)
     #    print(values)
-    nominees = get_nominees("2013", winners)
-    for keys, values in nominees.items():
-        print(keys)
-        print(values)
+    # nominees = get_nominees("2013", winners)
+    # for keys, values in nominees.items():
+    #     print(keys)
+    #     print(values)
+    get_jokes()
     return
 
 
