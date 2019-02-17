@@ -134,6 +134,11 @@ def get_winner(year):
     return winners
 
 
+def possible_presenters():
+    # get list of possible presenters, search through tweets with extra stopwords unti we get a solid list
+    pass
+
+
 def get_presenters(year):
     '''Presenters is a dictionary with the hard coded award
     names as keys, and each entry a list of strings. Do NOT change the
@@ -161,7 +166,6 @@ def get_presenters(year):
 
         # bgms = []
 
-        possible_presenters = {}
         # check to see if tweet has words in award name
         # remove award words and stop words
         timestamp_counter = 0
@@ -174,7 +178,7 @@ def get_presenters(year):
             if percent > .9:
                 timestamp_counter += 1
                 timestamp_sum += tweet["timestamp_ms"]
-                #presenter_name = [word for word in tweet_tokens if word not in award_tokens]
+                # presenter_name = [word for word in tweet_tokens if word not in award_tokens]
                 # bgms.extend(nltk.bigrams(presenter_name))
 
         award_avg = float(timestamp_sum / timestamp_counter)
@@ -183,13 +187,22 @@ def get_presenters(year):
         # freq = nltk.FreqDist(bgms)
         # presenters[award] = sorted(freq, key=freq.get, reverse=True)[:1]
 
+# list of names in presenter tweets, check to make sure that bigrams are bigrams in possible presenter
+    possible_presenters = []
+    for tweet in presenter_tweets:
+        tweet_tokens = tweet["text"]
+        possible_presenters.extend(nltk.bigrams(tweet_tokens))
+
+    presenters_freq = nltk.FreqDist(possible_presenters)
+    possible_presenters = sorted(presenters_freq, key=presenters_freq.get, reverse=True)[:50]
+    print (possible_presenters)
     for key, value in award_time_dict.items():
         bgms = []
         for tweet in all_tweets:
-            if value - 300000 < tweet["timestamp_ms"] < value:
+            if value - 200000 < tweet["timestamp_ms"] < value:
                 bgms.extend(nltk.bigrams(tweet["text"]))
         freq = nltk.FreqDist(bgms)
-        presenters[key] = sorted(freq, key=freq.get, reverse=True)[:3]
+        presenters[key] = sorted(freq, key=freq.get, reverse=True)[:5]
     return presenters
 
 
@@ -232,9 +245,9 @@ def main():
     pre_ceremony()
     # print (get_hosts(host_tweets))
     # print (get_awards("2013"))
-    # winners = (get_winner("2013"))
-    presenters = (get_presenters("2013"))
-    for keys, values in presenters.items():
+    winners = (get_winner("2013"))
+    #presenters = (get_presenters("2013"))
+    for keys, values in winners.items():
         print(keys)
         print(values)
     return
