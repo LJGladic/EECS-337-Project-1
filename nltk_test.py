@@ -87,7 +87,6 @@ def get_nominees(year, winners):
         official_awards = OFFICIAL_AWARDS_1819
 
     nominees = {}
-
     for award in official_awards:
         for ch in string.punctuation:
             award = award.replace(ch, "")
@@ -105,16 +104,15 @@ def get_nominees(year, winners):
         bgms = []
         winner = winners[award]
         winner_tokens = [t.lower() for t in winner.split()]
-        if 'actor' in award_tokens or 'actress' in award_tokens:
+        if 'actor' in award_tokens or 'actress' in award_tokens or "director" in award_tokens:
             human_name = True
 
-        for tweet in award_tweets:
+        for tweet in nominee_tweets:
             tweet_tokens = tweet["text"]
-
             combined_tokens = [value for value in award_tokens if value in tweet_tokens]
             percent = float(len(combined_tokens) / len(award_tokens))
             #.7 with no punctuation
-            if percent > .9:
+            if percent > .8:
                 nominee_name = [word for word in tweet_tokens if word not in award_tokens]
                 if human_name:
                     bgms.extend(nltk.bigrams(nominee_name))
@@ -141,8 +139,13 @@ def get_nominees(year, winners):
                     x += 1
                     continue
                 else:
-                    top_4.append(" ".join(sorted_bgms[x]))
-                    x += 1
+                    name = " ".join(sorted_bgms[x])
+                    if name in people:
+                        top_4.append(name)
+                        x += 1
+                    else:
+                        x += 1
+                        continue
             nominees[award] = top_4
         else:
             top_4 = []
@@ -156,16 +159,20 @@ def get_nominees(year, winners):
                 for t in nom_tokens:
                     if(t in winner_tokens):
                         overlap = True
-
                 if overlap == True:
                     x += 1
                     continue
                 else:
-                    top_4.append(possible_noms[x])
-                    x += 1
+                    name = possible_noms[x]
+                    if name in movies or name in tv:
+                        top_4.append(possible_noms[x])
+                        x += 1
+                    else:
+                        x += 1
+                        continue
             nominees[award] = top_4
-            #nominees[award] = sorted(possible_nominees, key=possible_nominees.get, reverse=True)[:4]
-            print(nominees[award])
+            # nominees[award] = sorted(possible_nominees, key=possible_nominees.get, reverse=True)[:4]
+            # print(nominees[award])
     return nominees
 
 
@@ -222,8 +229,7 @@ def get_winner(year):
                         possible_winners[winner_name] += 1
         if human_name:
             freq = nltk.FreqDist(bgms)
-            winners[award] = " ".join(sorted(freq, key=freq.get, reverse=True)[
-                                      :1][0])
+            winners[award] = " ".join(sorted(freq, key=freq.get, reverse=True)[:1][0])
         elif sorted(possible_winners, key=possible_winners.get, reverse=True)[0]:
             winners[award] = sorted(possible_winners, key=possible_winners.get, reverse=True)[0]
     # find tweets that contain certain percentage of award name,
@@ -251,7 +257,7 @@ def possible_presenters():
     print(possible_presenters)
     possible_presenters = [person for person in possible_presenters if person in people]
     print(possible_presenters)
-    #possible_presenters2 = human_names(possible_presenters)
+    # possible_presenters2 = human_names(possible_presenters)
     return possible_presenters
 
 
@@ -393,6 +399,7 @@ def get_jokes():
 host_tweets = []
 award_tweets = []
 finding_award_tweets = []
+nominee_tweets = []
 presenter_tweets = []
 all_tweets = []
 red_carpet_tweets = []
@@ -472,8 +479,15 @@ def pre_ceremony():
                 host_tweets.append(t)
             if "best" in tokens or "award" in tokens:
                 award_tweets.append(t)
+
+
+<< << << < HEAD
             if "best" in tokens:
                 finding_award_tweets.append(t)
+== == == =
+            if "best" in tokens or "award" in tokens or "nominee" in tokens or "nominees" in tokens or "nominate" in tokens or "nominated" in tokens:
+                nominee_tweets.append(t)
+>>>>>> > f9523c394f1ada33bdaad3bb5ab5f4cd72939b8c
             if any(w in presenter_terms for w in tokens):
                 presenter_tweets.append(t)
             if "red" in tokens and "carpet" in tokens:
@@ -482,14 +496,15 @@ def pre_ceremony():
                 joke_tweets.append(t["text"])
                 joke_original.append(tweet)
     person_db()
-    # movie_db('2013')
-    # tv_db('2013')
+    movie_db('2012')
+    tv_db('2012')
     print("Pre-ceremony processing complete.")
     return
 
 
 def main():
     pre_ceremony()
+
 # get_red_carpet("2013")
     hosts = (get_hosts(host_tweets))
     get_awards("2013")
@@ -519,6 +534,23 @@ def main():
     with open('gg.json', 'w') as outfile:
         json.dump(json_output, outfile)
 
+
+    get_red_carpet()
+    # print (get_hosts(host_tweets))
+    # print (get_awards("2013"))
+    # presenters = (get_presenters("2013"))
+    # for keys, values in presenters.items():
+    #     print(keys)
+    #     print(values)
+    winners = (get_winner("2013"))
+    # for keys, values in winners.items():
+    #    print(keys)
+    #    print(values)
+    nominees = get_nominees("2013", winners)
+    for keys, values in nominees.items():
+        print(keys)
+        print(values)
+    # get_jokes()
     return
 
 
