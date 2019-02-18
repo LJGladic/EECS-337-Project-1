@@ -17,6 +17,7 @@ i = 0
 winners = []
 movies = set()
 people = set()
+tv = set()
 with open('gg2013.json') as f:
     data = json.load(f)
 
@@ -333,7 +334,6 @@ def get_red_carpet():
     worst = sorted(names, key=names.get)[:5]
     print(best)
     print(worst)
-    print(len(names))
     return
 
 
@@ -376,14 +376,29 @@ joke_original = []
 def movie_db(year):
     start = 1
     for page in range(1,11):
-        url = 'https://www.imdb.com/search/title?release_date=' + year + '-01-01,' + year + \
-              '-12-31&sort=num_votes,desc&start=' + str(start) + '&ref_=adv_nxt'
+        url = 'https://www.imdb.com/search/title?title_type=feature,tv_movie&release_date=' \
+              + year + '-01-01,' + year + '-12-31&sort=num_votes,desc&start=' + str(start) + '&ref_=adv_nxt'
         response = get(url)
         html_soup = BeautifulSoup(response.text, 'html.parser')
         movie_containers = html_soup.find_all('div', class_='lister-item mode-advanced')
         for movie in movie_containers:
             name = movie.h3.a.text
             movies.add(name)
+        start += 50
+    return
+
+
+def tv_db(year):
+    start = 1
+    for page in range(1,11):
+        url = 'https://www.imdb.com/search/title?title_type=tv_series,tv_miniseries&release_date=' \
+              + year + '-01-01,' + year + '-12-31&sort=num_votes,desc&start=' + str(start) + '&ref_=adv_nxt'
+        response = get(url)
+        html_soup = BeautifulSoup(response.text, 'html.parser')
+        tv_containers = html_soup.find_all('div', class_='lister-item mode-advanced')
+        for title in tv_containers:
+            name = title.h3.a.text
+            tv.add(name)
         start += 50
     return
 
@@ -435,14 +450,14 @@ def pre_ceremony():
                 joke_tweets.append(t["text"])
                 joke_original.append(tweet)
     person_db()
+    # movie_db('2013')
+    # tv_db('2013')
     print("Pre-ceremony processing complete.")
     return
 
 
 def main():
     pre_ceremony()
-    # movie_db("2017")
-    # person_db()
     get_red_carpet()
     # print (get_hosts(host_tweets))
     # print (get_awards("2013"))
