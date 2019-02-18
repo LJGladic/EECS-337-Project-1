@@ -183,6 +183,7 @@ def get_winner(year):
 
     # punctuation fucked shit up
     for award in official_awards:
+        # make sure that it doesn't mess it up
         for ch in string.punctuation:
             award = award.replace(ch, "")
         award_tokens = [t.lower() for t in award.split() if t.lower() not in stop_words]
@@ -224,7 +225,7 @@ def get_winner(year):
             freq = nltk.FreqDist(bgms)
             winners[award] = " ".join(sorted(freq, key=freq.get, reverse=True)[
                                       :1][0])
-        else:
+        elif sorted(possible_winners, key=possible_winners.get, reverse=True)[0]:
             winners[award] = sorted(possible_winners, key=possible_winners.get, reverse=True)[0]
     # find tweets that contain certain percentage of award name,
     # remove stop words and award words,
@@ -270,67 +271,6 @@ def human_names(names):
     return tweet_names
 
 
-# def get_presenters(year):
-#     '''Presenters is a dictionary with the hard coded award
-#     names as keys, and each entry a list of strings. Do NOT change the
-#     name of this function or what it returns.'''
-#     presenters = {}
-#     if(year == "2013" or year == "2015"):
-#         official_awards = OFFICIAL_AWARDS_1315
-#     else:
-#         official_awards = OFFICIAL_AWARDS_1819
-#
-#     award_time_dict = {}
-#     # punctuation fucked shit up
-#     for award in official_awards:
-#         for ch in string.punctuation:
-#             award = award.replace(ch, "")
-#         award_tokens = [t.lower() for t in award.split() if t.lower() not in stop_words]
-#         if 'television' in award_tokens:
-#             award_tokens[award_tokens.index('television')] = 'tv'
-#
-#         if 'tv' in award_tokens:
-#             if 'motion' in award_tokens:
-#                 award_tokens.remove('motion')
-#             if 'picture' in award_tokens:
-#                 award_tokens.remove('picture')
-#
-#         # bgms = []
-#
-#         # check to see if tweet has words in award name
-#         # remove award words and stop words
-#         timestamp_counter = 0
-#         timestamp_sum = 0
-#         for tweet in award_tweets:
-#             tweet_tokens = tweet["text"]
-#
-#             combined_tokens = [value for value in award_tokens if value in tweet_tokens]
-#             percent = float(len(combined_tokens) / len(award_tokens))
-#             if percent > .9:
-#                 timestamp_counter += 1
-#                 timestamp_sum += tweet["timestamp_ms"]
-#                 # presenter_name = [word for word in tweet_tokens if word not in award_tokens]
-#                 # bgms.extend(nltk.bigrams(presenter_name))
-#
-#         award_avg = float(timestamp_sum / timestamp_counter)
-#         award_time_dict[award] = award_avg
-#
-#         # freq = nltk.FreqDist(bgms)
-#         # presenters[award] = sorted(freq, key=freq.get, reverse=True)[:1]
-#
-# # list of names in presenter tweets, check to make sure that bigrams are bigrams in possible presenter
-#     presenter_lst = possible_presenters()
-#     print(presenter_lst)
-#     for key, value in award_time_dict.items():
-#         bgms = []
-#         for tweet in all_tweets:
-#             if value - 200000 < tweet["timestamp_ms"] < value:
-#                 add_bigrams = [bgm for bgm in nltk.bigrams(tweet["text"]) if bgm in presenter_lst]
-#                 bgms.extend(add_bigrams)
-#         freq = nltk.FreqDist(bgms)
-#         presenters[key] = sorted(freq, key=freq.get, reverse=True)[:5]
-#     return presenters
-
 def get_presenters(year):
     '''Presenters is a dictionary with the hard coded award
     names as keys, and each entry a list of strings. Do NOT change the
@@ -345,6 +285,7 @@ def get_presenters(year):
     short_award_names = {}
     # keeps track of bigrams of tweets
     award_bigrams = {}
+    # shortens award names
     for award in official_awards:
         for ch in string.punctuation:
             award = award.replace(ch, "")
@@ -362,46 +303,28 @@ def get_presenters(year):
 
     # instead check if one of the names is in tweet, then check what award
     presenter_lst = possible_presenters()
-
     for tweet in award_tweets:
         tweet_tokens = tweet["text"]
         tweet = " ".join(tweet_tokens)
         tweet_bigrams = nltk.bigrams(tweet_tokens)
-        # print('here')
-        # print(presenter_lst)
-        if any(presenter in tweet for presenter in presenter_lst):
-            print("found award and presenter")
-        if any(bgm in tweet_bigrams for bgm in presenter_lst):
-            print("found bigram and presenter")
-        for award_name, award_tokens in short_award_names.items():
-            combined_tokens = [value for value in award_tokens if value in tweet_tokens]
-            percent = float(len(combined_tokens) / len(award_tokens))
-            if percent > .6:
-                presenter_name = [word for word in tweet_tokens if word not in award_tokens]
-                award_bigrams[award_name].extend(nltk.bigrams(presenter_name))
+        for presenter in presenter_lst:
+            if presenter in tweet:
+                print("found award and presenter")
+                for award_name, award_tokens in short_award_names.items():
+                    combined_tokens = [value for value in award_tokens if value in tweet_tokens]
+                    percent = float(len(combined_tokens) / len(award_tokens))
+                    if percent > .75:
+                        if award_name not in presenters:
+                            presenters[award_name] = [presenter]
+                        else:
+                            presenters[award_name].append(presenter)
+                    else:
+                        if award_name not in presenters:
+                            presenters[award_name] = []
 
-        # freq = nltk.FreqDist(bgms)
-        # presenters[award] = sorted(freq, key=freq.get, reverse=True)[:1]
-
-    # orders for each award
-
-    for award_name, bigrams in award_bigrams.items():
-        freq = nltk.FreqDist(bigrams)
-        sorted_bgms = sorted(freq, key=freq.get, reverse=True)[:50]
-
-        names = []
-        for b in sorted_bgms:
-            names.append(" ".join(b))
-        #print (names)
-        award_bigrams[award_name] = [name for name in names if name in presenter_lst]
-        #print (award_name)
-        # print(award_bigrams[award_name])
-
-    # for tweet in all_tweets:
-    #     add_bigrams = [bgm for bgm in nltk.bigrams(tweet["text"]) if bgm in presenter_lst]
-    #     bgms.extend(add_bigrams)
-    # freq = nltk.FreqDist(bgms)
-    # presenters[key] = sorted(freq, key=freq.get, reverse=True)[:5]
+    for key, values in presenters.items():
+        presenters[key] = values[:2]
+        print(values)
     return presenters
 
 
@@ -565,9 +488,6 @@ def pre_ceremony():
 
 def main():
     pre_ceremony()
-
-
-<< << << < HEAD
 # get_red_carpet("2013")
     hosts = (get_hosts(host_tweets))
     # print (get_awards("2013"))
@@ -575,8 +495,8 @@ def main():
     for keys, values in presenters.items():
         print(keys)
         print(values)
-    # winners = (get_winner("2013"))
-    #nominees = get_nominees("2013")
+    winners = (get_winner("2013"))
+    nominees = get_nominees("2013", winners)
     # for keys, values in winners.items():
     #     print(keys)
     #     print(values)
@@ -585,14 +505,17 @@ def main():
     json_output = {}
     json_output["hosts"] = hosts
     json_output["award_data"] = {}
-    for award_name in official_awards:
+    for award_name in OFFICIAL_AWARDS_1315:
+        for ch in string.punctuation:
+            award_name = award_name.replace(ch, "")
         json_output["award_data"][award_name] = {}
+
         json_output["award_data"][award_name]["nominees"] = nominees[award_name]
         json_output["award_data"][award_name]["presenters"] = presenters[award_name]
         json_output["award_data"][award_name]["winner"] = winners[award_name]
 
     with open('gg.json', 'w') as outfile:
-        json.dump(data, outfile)
+        json.dump(json_output, outfile)
 
     return
 
