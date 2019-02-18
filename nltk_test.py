@@ -6,6 +6,8 @@ from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from imdb import IMDb
 from nltk.collocations import *
 from nltk.metrics.association import QuadgramAssocMeasures
+from requests import get
+from bs4 import BeautifulSoup
 # filter = "JSON file (*.json)|*.json|All Files (*.*)|*.*||"
 # filename = rs.OpenFileName("Open JSON File", filter)
 # data = json.load('gg2013.json')
@@ -13,6 +15,8 @@ from nltk.metrics.association import QuadgramAssocMeasures
 hosts = []
 i = 0
 winners = []
+movies = set()
+people = set()
 with open('gg2013.json') as f:
     data = json.load(f)
 
@@ -301,7 +305,6 @@ def get_red_carpet():
     ia = IMDb()
     bgms = []
     names = {}
-
     for tweet in red_carpet_tweets:
         tokens = tweet["text"]
         try:
@@ -313,9 +316,11 @@ def get_red_carpet():
     freq = nltk.FreqDist(bgms)
     for bigram in sorted(freq, key=freq.get, reverse=True)[:100]:
         name = " ".join(bigram)
-        if ia.search_person(name):
-            if ia.search_person(name)[0]['name'].lower() == name.lower():
-                names[name] = 0
+        if name.lower() in people:
+            names[name] = 0
+        # if ia.search_person(name):
+        #     if ia.search_person(name)[0]['name'].lower() == name.lower():
+        #         names[name] = 0
 
     for tweet in red_carpet_tweets:
         tokens = tweet["text"]
@@ -328,6 +333,7 @@ def get_red_carpet():
     worst = sorted(names, key=names.get)[:5]
     print(best)
     print(worst)
+    print(len(names))
     return
 
 
@@ -335,7 +341,7 @@ def get_jokes():
     quadgram_measures = QuadgramAssocMeasures
     finder = QuadgramCollocationFinder.from_documents(joke_tweets)
     finder.apply_freq_filter(5)
-    common = finder.nbest(quadgram_measures.pmi, 30)
+    common = finder.nbest(quadgram_measures.pmi, 50)
     jokes = []
     for tweet in joke_original:
         for q in common:
@@ -355,7 +361,6 @@ def get_jokes():
                 if add:
                     jokes.append(tweet)
                     common.remove(q)
-    print(jokes)
     return jokes
 
 
@@ -366,6 +371,37 @@ all_tweets = []
 red_carpet_tweets = []
 joke_tweets = []
 joke_original = []
+
+
+def movie_db(year):
+    start = 1
+    for page in range(1,11):
+        url = 'https://www.imdb.com/search/title?release_date=' + year + '-01-01,' + year + \
+              '-12-31&sort=num_votes,desc&start=' + str(start) + '&ref_=adv_nxt'
+        response = get(url)
+        html_soup = BeautifulSoup(response.text, 'html.parser')
+        movie_containers = html_soup.find_all('div', class_='lister-item mode-advanced')
+        for movie in movie_containers:
+            name = movie.h3.a.text
+            movies.add(name)
+        start += 50
+    return
+
+
+def person_db():
+    start = 1
+    for page in range(1, 31):
+        url = 'https://www.imdb.com/search/name?gender=male,female&start=' + str(start) + '&ref_=rlm'
+        response = get(url)
+        html_soup = BeautifulSoup(response.text, 'html.parser')
+        person_containers = html_soup.find_all('div', class_='lister-item mode-detail')
+        for person in person_containers:
+            name = person.h3.a.text
+            # remove formatting
+            name = name[1:-1].lower()
+            people.add(name)
+        start += 50
+    return
 
 
 def pre_ceremony():
@@ -398,14 +434,16 @@ def pre_ceremony():
             if "joke" in tokens:
                 joke_tweets.append(t["text"])
                 joke_original.append(tweet)
-
+    person_db()
     print("Pre-ceremony processing complete.")
     return
 
 
 def main():
     pre_ceremony()
-    # get_red_carpet()
+    # movie_db("2017")
+    # person_db()
+    get_red_carpet()
     # print (get_hosts(host_tweets))
     # print (get_awards("2013"))
     # presenters = (get_presenters("2013"))
@@ -420,7 +458,7 @@ def main():
     # for keys, values in nominees.items():
     #     print(keys)
     #     print(values)
-    get_jokes()
+    # get_jokes()
     return
 
 
