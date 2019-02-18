@@ -58,8 +58,7 @@ def get_awards(year):
     of this function or what it returns.'''
 
     award_dict = {}
-    awards = []
-    for t in award_tweets:
+    for t in finding_award_tweets:
         tokens = t["text"]
         award_name = 'best'
         for tok in tokens[tokens.index("best") + 1:]:
@@ -73,7 +72,7 @@ def get_awards(year):
                 award_dict[award_name] += 1
 
         # remove tokens that are actors or movies
-    return print(sorted(award_dict, key=award_dict.get, reverse=True)[:30])
+    return sorted(award_dict, key=award_dict.get, reverse=True)[:30]
 
 
 def get_nominees(year, winners):
@@ -247,13 +246,13 @@ def possible_presenters():
 
     presenters_freq = nltk.FreqDist(possible_presenters)
 
-    # print (len(presenters_freq))
-    possible_presenters = sorted(presenters_freq, key=presenters_freq.get, reverse=True)[:50]
-    # print(possible_presenters)
-    possible_presenters2 = human_names(possible_presenters)
-    #print ((possible_presenters2))
-    # print (possible_presenters)
-    return possible_presenters2
+    possible_presenters = sorted(presenters_freq, key=presenters_freq.get, reverse=True)[:100]
+    possible_presenters = [' '.join(person) for person in possible_presenters]
+    print(possible_presenters)
+    possible_presenters = [person for person in possible_presenters if person in people]
+    print(possible_presenters)
+    #possible_presenters2 = human_names(possible_presenters)
+    return possible_presenters
 
 
 def human_names(names):
@@ -323,8 +322,8 @@ def get_presenters(year):
                             presenters[award_name] = []
 
     for key, values in presenters.items():
+        print(values[:2])
         presenters[key] = values[:2]
-        print(values)
     return presenters
 
 
@@ -393,6 +392,7 @@ def get_jokes():
 
 host_tweets = []
 award_tweets = []
+finding_award_tweets = []
 presenter_tweets = []
 all_tweets = []
 red_carpet_tweets = []
@@ -472,6 +472,8 @@ def pre_ceremony():
                 host_tweets.append(t)
             if "best" in tokens or "award" in tokens:
                 award_tweets.append(t)
+            if "best" in tokens:
+                finding_award_tweets.append(t)
             if any(w in presenter_terms for w in tokens):
                 presenter_tweets.append(t)
             if "red" in tokens and "carpet" in tokens:
@@ -490,7 +492,7 @@ def main():
     pre_ceremony()
 # get_red_carpet("2013")
     hosts = (get_hosts(host_tweets))
-    # print (get_awards("2013"))
+    get_awards("2013")
     presenters = (get_presenters("2013"))
     for keys, values in presenters.items():
         print(keys)
