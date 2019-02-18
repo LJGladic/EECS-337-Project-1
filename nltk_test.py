@@ -12,15 +12,16 @@ from bs4 import BeautifulSoup
 # filename = rs.OpenFileName("Open JSON File", filter)
 # data = json.load('gg2013.json')
 
-hosts = []
 i = 0
+year = ""
+db_year = ""
 winners = []
 movies = set()
 people = set()
 tv = set()
 
-with open('gg2013.json') as f:
-    data = json.load(f)
+# with open('gg2013.json') as f:
+#     data = json.load(f)
 
 
 stop_words = (stopwords.words('english'))
@@ -48,12 +49,15 @@ def get_hosts(tweets):
             cohost_count += 1
     freq = nltk.FreqDist(hosts)
     if cohost_count > 10:
-        return sorted(freq, key=freq.get, reverse=True)[:2]
+        hosts = []
+        hosts.append(" ".join(sorted(freq, key=freq.get, reverse=True)[:2][0]))
+        hosts.append(" ".join(sorted(freq, key=freq.get, reverse=True)[:2][1]))
+        return hosts
     else:
-        return sorted(freq, key=freq.get, reverse=True)[:1]
+        return " ".join(sorted(freq, key=freq.get, reverse=True)[:2][0])
 
 
-def get_awards(year):
+def get_awards(year, winners):
     '''Awards is a list of strings. Do NOT change the name
     of this function or what it returns.'''
 
@@ -72,7 +76,17 @@ def get_awards(year):
                 award_dict[award_name] += 1
 
         # remove tokens that are actors or movies
-    return sorted(award_dict, key=award_dict.get, reverse=True)[:30]
+    winners_lst = []
+    for keys, values in winners.items():
+        winners_lst.append(values)
+    awards_lst = sorted(award_dict, key=award_dict.get, reverse=True)[:32]
+    final_awards_lst = []
+    for award in awards_lst:
+        if len(award) > 12:
+            for winner in winners_lst:
+                if winner in award:
+                    final_awards_lst.append(award.replace(winner, ''))
+    return final_awards_lst
 
 
 def get_nominees(year, winners):
@@ -111,7 +125,7 @@ def get_nominees(year, winners):
             tweet_tokens = tweet["text"]
             combined_tokens = [value for value in award_tokens if value in tweet_tokens]
             percent = float(len(combined_tokens) / len(award_tokens))
-            #.7 with no punctuation
+
             if percent > .8:
                 nominee_name = [word for word in tweet_tokens if word not in award_tokens]
                 if human_name:
@@ -171,8 +185,8 @@ def get_nominees(year, winners):
                         x += 1
                         continue
             nominees[award] = top_4
-            # nominees[award] = sorted(possible_nominees, key=possible_nominees.get, reverse=True)[:4]
-            # print(nominees[award])
+            #nominees[award] = sorted(possible_nominees, key=possible_nominees.get, reverse=True)[:4]
+
     return nominees
 
 
@@ -207,7 +221,6 @@ def get_winner(year):
         if 'actor' in award_tokens or 'actress' in award_tokens:
             human_name = True
 
-    #    print (award_tokens)
         possible_winners = {}
         # check to see if tweet has words in award name
         # remove award words and stop words
@@ -254,26 +267,8 @@ def possible_presenters():
 
     possible_presenters = sorted(presenters_freq, key=presenters_freq.get, reverse=True)[:100]
     possible_presenters = [' '.join(person) for person in possible_presenters]
-    print(possible_presenters)
     possible_presenters = [person for person in possible_presenters if person in people]
-    print(possible_presenters)
-    # possible_presenters2 = human_names(possible_presenters)
     return possible_presenters
-
-
-def human_names(names):
-    ia = IMDb()
-    tweet_names = []
-
-    name_stop_words = []
-    for name in names:
-        new_name = " ".join(name)
-        # if any(w in new_name for w in name_stop_words) is False:
-        if ia.search_person(new_name):
-            if new_name == ia.search_person(new_name)[0]['name'].lower():
-                tweet_names.append(new_name)
-                print(new_name)
-    return tweet_names
 
 
 def get_presenters(year):
@@ -314,7 +309,6 @@ def get_presenters(year):
         tweet_bigrams = nltk.bigrams(tweet_tokens)
         for presenter in presenter_lst:
             if presenter in tweet:
-                print("found award and presenter")
                 for award_name, award_tokens in short_award_names.items():
                     combined_tokens = [value for value in award_tokens if value in tweet_tokens]
                     percent = float(len(combined_tokens) / len(award_tokens))
@@ -328,8 +322,8 @@ def get_presenters(year):
                             presenters[award_name] = []
 
     for key, values in presenters.items():
-        print(values[:2])
         presenters[key] = values[:2]
+        # print(values)
     return presenters
 
 
@@ -362,11 +356,9 @@ def get_red_carpet():
             if n in text:
                 sentiment = analyzer.polarity_scores(text)
                 names[n] += sentiment['compound']
-    best = sorted(names, key=names.get, reverse=True)[: 5]
-    worst = sorted(names, key=names.get)[: 5]
-    print(best)
-    print(worst)
-    return
+    best = sorted(names, key=names.get, reverse=True)[:5]
+    worst = sorted(names, key=names.get)[:5]
+    return best, worst
 
 
 def get_jokes():
@@ -464,15 +456,50 @@ def pre_ceremony():
     # Your code here
     host_terms = ['host', 'hosts', 'hosting', 'cohosts', 'cohosting', 'cohost']
     presenter_terms = ['presenting', 'presented', 'presenter', 'presents', 'present']
-    with open('gg2013.json') as f:
-        data = json.load(f)
+    try:
+        with open('gg2013.json') as f:
+            data = json.load(f)
+    except:
+        pass
+    else:
+        year = "2013"
+        db_year = "2012"
+
+    try:
+        with open('gg2015.json') as f:
+            data = json.load(f)
+    except:
+        pass
+    else:
+        year = "2015"
+        db_year = "2014"
+
+    try:
+        with open('gg2018.json') as f:
+            data = json.load(f)
+    except:
+        pass
+    else:
+        year = "2018"
+        db_year = "2017"
+
+    try:
+        with open('gg2019.json') as f:
+            data = json.load(f)
+    except:
+        pass
+    else:
+        year = "2019"
+        db_year = "2018"
+
+    # with open('gg2013.json') as f:
+    #     data = json.load(f)
     for t in data:
         tweet = t["text"]
         if tweet[: 2] != "RT":
             for ch in string.punctuation:
                 tweet = tweet.replace(ch, "")
             tokens = [t.lower() for t in tweet.split() if t.lower() not in stop_words]
-            # print (tokens)
             t["text"] = tokens
             all_tweets.append(t)
             if any(w in host_terms for w in tokens):
@@ -480,14 +507,10 @@ def pre_ceremony():
             if "best" in tokens or "award" in tokens:
                 award_tweets.append(t)
 
-
-<< << << < HEAD
             if "best" in tokens:
                 finding_award_tweets.append(t)
-== == == =
             if "best" in tokens or "award" in tokens or "nominee" in tokens or "nominees" in tokens or "nominate" in tokens or "nominated" in tokens:
                 nominee_tweets.append(t)
->>>>>> > f9523c394f1ada33bdaad3bb5ab5f4cd72939b8c
             if any(w in presenter_terms for w in tokens):
                 presenter_tweets.append(t)
             if "red" in tokens and "carpet" in tokens:
@@ -496,29 +519,22 @@ def pre_ceremony():
                 joke_tweets.append(t["text"])
                 joke_original.append(tweet)
     person_db()
-    movie_db('2012')
-    tv_db('2012')
+    movie_db(db_year)
+    tv_db(db_year)
     print("Pre-ceremony processing complete.")
-    return
+    return year, db_year
 
 
 def main():
-    pre_ceremony()
-
-# get_red_carpet("2013")
+    year, db_year = pre_ceremony()
+    best, worst = get_red_carpet()
     hosts = (get_hosts(host_tweets))
-    get_awards("2013")
-    presenters = (get_presenters("2013"))
-    for keys, values in presenters.items():
-        print(keys)
-        print(values)
-    winners = (get_winner("2013"))
-    nominees = get_nominees("2013", winners)
-    # for keys, values in winners.items():
-    #     print(keys)
-    #     print(values)
-    # human_names('none')
-    # get_jokes()
+
+    found_awards = (get_awards(year))
+    presenters = (get_presenters(year))
+    winners = (get_winner(year))
+    nominees = get_nominees(year, winners)
+    jokes = get_jokes()
     json_output = {}
     json_output["hosts"] = hosts
     json_output["award_data"] = {}
@@ -534,23 +550,80 @@ def main():
     with open('gg.json', 'w') as outfile:
         json.dump(json_output, outfile)
 
+    if year == "2013" or year == "2015":
+        official_awards = OFFICIAL_AWARDS_1315
+    else:
+        official_awards = OFFICIAL_AWARDS_1819
 
-    get_red_carpet()
-    # print (get_hosts(host_tweets))
-    # print (get_awards("2013"))
-    # presenters = (get_presenters("2013"))
-    # for keys, values in presenters.items():
-    #     print(keys)
-    #     print(values)
-    winners = (get_winner("2013"))
-    # for keys, values in winners.items():
-    #    print(keys)
-    #    print(values)
-    nominees = get_nominees("2013", winners)
-    for keys, values in nominees.items():
-        print(keys)
-        print(values)
-    # get_jokes()
+    file = open("gg.txt", "w")
+    file.write("Host(s): ")
+    n = len(hosts)
+    for i in range(n):
+        if i == n - 1:
+            file.write(" ".join(hosts[i]).title())
+        else:
+            file.write(" ".join(hosts[i]).title() + ", ")
+    file.write("\n")
+
+    for award in official_awards:
+        for ch in string.punctuation:
+            award = award.replace(ch, "")
+        file.write("Award: " + award)
+        file.write("\n")
+
+        file.write("Presenters: ")
+        n = len(presenters[award])
+        for i in range(n):
+            if i == n - 1:
+                file.write(presenters[award][i].title())
+            else:
+                file.write(presenters[award][i].title() + ", ")
+        file.write("\n")
+
+        file.write("Nominees: ")
+        n = len(nominees[award])
+        for i in range(n):
+            if i == n - 1:
+                file.write(nominees[award][i].title())
+            else:
+                file.write(nominees[award][i].title() + ", ")
+        file.write("\n")
+
+        file.write("Winner: " + winners[award].title())
+        file.write("\n\n")
+
+    file.write("(Our Found) Awards: \n")
+    n = len(found_awards)
+    for i in range(n):
+        if i == n - 1:
+            file.write(" ".join(found_awards[i]))
+        else:
+            file.write(" ".join(found_awards[i]) + ", ")
+    file.write("\n\n")
+
+    file.write("Best Dressed: ")
+    n = len(best)
+    for i in range(n):
+        if i == n - 1:
+            file.write(best[i].title())
+        else:
+            file.write(best[i].title() + ", ")
+    file.write("\n")
+
+    file.write("Worst Dressed: ")
+    n = len(worst)
+    for i in range(n):
+        if i == n - 1:
+            file.write(worst[i].title())
+        else:
+            file.write(worst[i].title() + ", ")
+    file.write("\n\n")
+
+    file.write("Best Jokes: \n")
+    for joke in jokes:
+        file.write(joke)
+    file.write("\n")
+
     return
 
 
