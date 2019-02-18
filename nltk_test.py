@@ -4,14 +4,21 @@ from nltk.corpus import stopwords
 import string
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from imdb import IMDb
-from collections import Counter
-import re
+from nltk.collocations import *
+from nltk.metrics.association import QuadgramAssocMeasures
+from requests import get
+from bs4 import BeautifulSoup
 # filter = "JSON file (*.json)|*.json|All Files (*.*)|*.*||"
 # filename = rs.OpenFileName("Open JSON File", filter)
 # data = json.load('gg2013.json')
 
 hosts = []
 i = 0
+winners = []
+movies = set()
+people = set()
+tv = set()
+
 with open('gg2013.json') as f:
     data = json.load(f)
 
@@ -69,11 +76,97 @@ def get_awards(year):
     return print(sorted(award_dict, key=award_dict.get, reverse=True)[:30])
 
 
-def get_nominees(year):
+def get_nominees(year, winners):
     '''Nominees is a dictionary with the hard coded award
     names as keys, and each entry a list of strings. Do NOT change
     the name of this function or what it returns.'''
     # Your code here
+
+    if(year == "2013" or year == "2015"):
+        official_awards = OFFICIAL_AWARDS_1315
+    else:
+        official_awards = OFFICIAL_AWARDS_1819
+
+    nominees = {}
+
+    for award in official_awards:
+        for ch in string.punctuation:
+            award = award.replace(ch, "")
+        award_tokens = [t.lower() for t in award.split() if t.lower() not in stop_words]
+        if 'television' in award_tokens:
+            award_tokens[award_tokens.index('television')] = 'tv'
+
+        if 'tv' in award_tokens:
+            if 'motion' in award_tokens:
+                award_tokens.remove('motion')
+            if 'picture' in award_tokens:
+                award_tokens.remove('picture')
+        possible_nominees = {}
+        human_name = False
+        bgms = []
+        winner = winners[award]
+        winner_tokens = [t.lower() for t in winner.split()]
+        if 'actor' in award_tokens or 'actress' in award_tokens:
+            human_name = True
+
+        for tweet in award_tweets:
+            tweet_tokens = tweet["text"]
+
+            combined_tokens = [value for value in award_tokens if value in tweet_tokens]
+            percent = float(len(combined_tokens) / len(award_tokens))
+            #.7 with no punctuation
+            if percent > .9:
+                nominee_name = [word for word in tweet_tokens if word not in award_tokens]
+                if human_name:
+                    bgms.extend(nltk.bigrams(nominee_name))
+                else:
+                    nominee_name = " ".join(nominee_name)
+                    if nominee_name not in possible_nominees:
+                        possible_nominees[nominee_name] = 1
+                    else:
+                        possible_nominees[nominee_name] += 1
+        if human_name:
+            freq = nltk.FreqDist(bgms)
+            top_4 = []
+            sorted_bgms = (sorted(freq, key=freq.get, reverse=True))
+            x = 1
+            while len(top_4) != 4:
+                if x >= len(sorted_bgms):
+                    break
+                overlap = False
+                for t in sorted_bgms[x]:
+                    if(t in winner_tokens):
+                        overlap = True
+
+                if overlap == True:
+                    x += 1
+                    continue
+                else:
+                    top_4.append(" ".join(sorted_bgms[x]))
+                    x += 1
+            nominees[award] = top_4
+        else:
+            top_4 = []
+            x = 1
+            possible_noms = sorted(possible_nominees, key=possible_nominees.get, reverse=True)
+            while len(top_4) != 4:
+                if x >= len(possible_noms):
+                    break
+                overlap = False
+                nom_tokens = possible_noms[x].split()
+                for t in nom_tokens:
+                    if(t in winner_tokens):
+                        overlap = True
+
+                if overlap == True:
+                    x += 1
+                    continue
+                else:
+                    top_4.append(possible_noms[x])
+                    x += 1
+            nominees[award] = top_4
+            #nominees[award] = sorted(possible_nominees, key=possible_nominees.get, reverse=True)[:4]
+            print(nominees[award])
     return nominees
 
 
@@ -107,7 +200,7 @@ def get_winner(year):
         if 'actor' in award_tokens or 'actress' in award_tokens:
             human_name = True
 
-        print (award_tokens)
+    #    print (award_tokens)
         possible_winners = {}
         # check to see if tweet has words in award name
         # remove award words and stop words
@@ -132,7 +225,7 @@ def get_winner(year):
             winners[award] = " ".join(sorted(freq, key=freq.get, reverse=True)[
                                       :1][0])
         else:
-            winners[award] = sorted(possible_winners, key=possible_winners.get, reverse=True)[:1]
+            winners[award] = sorted(possible_winners, key=possible_winners.get, reverse=True)[0]
     # find tweets that contain certain percentage of award name,
     # remove stop words and award words,
     return winners
@@ -312,12 +405,11 @@ def get_presenters(year):
     return presenters
 
 
-def get_red_carpet(year):
+def get_red_carpet():
     analyzer = SentimentIntensityAnalyzer()
     ia = IMDb()
     bgms = []
     names = {}
-
     for tweet in red_carpet_tweets:
         tokens = tweet["text"]
         try:
@@ -329,9 +421,11 @@ def get_red_carpet(year):
     freq = nltk.FreqDist(bgms)
     for bigram in sorted(freq, key=freq.get, reverse=True)[: 100]:
         name = " ".join(bigram)
-        if ia.search_person(name):
-            if ia.search_person(name)[0]['name'].lower() == name.lower():
-                names[name] = 0
+        if name.lower() in people:
+            names[name] = 0
+        # if ia.search_person(name):
+        #     if ia.search_person(name)[0]['name'].lower() == name.lower():
+        #         names[name] = 0
 
     for tweet in red_carpet_tweets:
         tokens = tweet["text"]
@@ -347,11 +441,89 @@ def get_red_carpet(year):
     return
 
 
+def get_jokes():
+    quadgram_measures = QuadgramAssocMeasures
+    finder = QuadgramCollocationFinder.from_documents(joke_tweets)
+    finder.apply_freq_filter(5)
+    common = finder.nbest(quadgram_measures.pmi, 50)
+    jokes = []
+    for tweet in joke_original:
+        for q in common:
+            count = 0
+            for word in q:
+                if word in tweet:
+                    count += 1
+            if count == 4:
+                add = True
+                for j in jokes:
+                    repeat = 0
+                    for word in q:
+                        if word in j:
+                            repeat += 1
+                    if repeat == 4:
+                        add = False
+                if add:
+                    jokes.append(tweet)
+                    common.remove(q)
+    return jokes
+
+
 host_tweets = []
 award_tweets = []
 presenter_tweets = []
 all_tweets = []
 red_carpet_tweets = []
+joke_tweets = []
+joke_original = []
+
+
+def movie_db(year):
+    start = 1
+    for page in range(1, 11):
+        url = 'https://www.imdb.com/search/title?title_type=feature,tv_movie&release_date=' \
+              + year + '-01-01,' + year + '-12-31&sort=num_votes,desc&start=' + \
+            str(start) + '&ref_=adv_nxt'
+        response = get(url)
+        html_soup = BeautifulSoup(response.text, 'html.parser')
+        movie_containers = html_soup.find_all('div', class_='lister-item mode-advanced')
+        for movie in movie_containers:
+            name = movie.h3.a.text
+            movies.add(name)
+        start += 50
+    return
+
+
+def tv_db(year):
+    start = 1
+    for page in range(1, 11):
+        url = 'https://www.imdb.com/search/title?title_type=tv_series,tv_miniseries&release_date=' \
+              + year + '-01-01,' + year + '-12-31&sort=num_votes,desc&start=' + \
+            str(start) + '&ref_=adv_nxt'
+        response = get(url)
+        html_soup = BeautifulSoup(response.text, 'html.parser')
+        tv_containers = html_soup.find_all('div', class_='lister-item mode-advanced')
+        for title in tv_containers:
+            name = title.h3.a.text
+            tv.add(name)
+        start += 50
+    return
+
+
+def person_db():
+    start = 1
+    for page in range(1, 31):
+        url = 'https://www.imdb.com/search/name?gender=male,female&start=' + \
+            str(start) + '&ref_=rlm'
+        response = get(url)
+        html_soup = BeautifulSoup(response.text, 'html.parser')
+        person_containers = html_soup.find_all('div', class_='lister-item mode-detail')
+        for person in person_containers:
+            name = person.h3.a.text
+            # remove formatting
+            name = name[1:-1].lower()
+            people.add(name)
+        start += 50
+    return
 
 
 def pre_ceremony():
@@ -381,14 +553,22 @@ def pre_ceremony():
                 presenter_tweets.append(t)
             if "red" in tokens and "carpet" in tokens:
                 red_carpet_tweets.append(t)
-
+            if "joke" in tokens:
+                joke_tweets.append(t["text"])
+                joke_original.append(tweet)
+    person_db()
+    # movie_db('2013')
+    # tv_db('2013')
     print("Pre-ceremony processing complete.")
     return
 
 
 def main():
     pre_ceremony()
-    # get_red_carpet("2013")
+
+
+<< << << < HEAD
+# get_red_carpet("2013")
     hosts = (get_hosts(host_tweets))
     # print (get_awards("2013"))
     presenters = (get_presenters("2013"))
@@ -401,6 +581,7 @@ def main():
     #     print(keys)
     #     print(values)
     # human_names('none')
+    # get_jokes()
     json_output = {}
     json_output["hosts"] = hosts
     json_output["award_data"] = {}
@@ -412,6 +593,7 @@ def main():
 
     with open('gg.json', 'w') as outfile:
         json.dump(data, outfile)
+
     return
 
 
